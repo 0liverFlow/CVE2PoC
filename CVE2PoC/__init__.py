@@ -864,7 +864,7 @@ def main():
                     rprint(
                         f"ExploitDB:[magenta3] searchsploit -m {exploit[0]}[/magenta3]\n"
                     )
-                else:
+                elif source == "nuclei":
                     nuclei_template_path, nuclei_template_url = exploit
                     if nuclei_template_path:
                         rprint(
@@ -872,6 +872,8 @@ def main():
                         )
                     else:
                         rprint(f"Nuclei:[magenta3] {nuclei_template_url}[/magenta3]\n")
+                else:
+                    rprint(f"GHSA:[magenta3] {exploit[0]}[/magenta3] [spring_green2]{exploit[-1]}[spring_green2]\n")
         else:
             rprint("[red3][-][/red3] No Pocs found on other sources!\n")
 
