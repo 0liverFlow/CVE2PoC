@@ -3,7 +3,6 @@
 import requests
 from markdown import markdown
 from bs4 import BeautifulSoup as bsoup
-from rich import print as rprint
 from rich.progress import (
     Progress,
     SpinnerColumn,
@@ -14,6 +13,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
+from rich import box
 from dotenv import load_dotenv, set_key
 
 import argparse
@@ -63,6 +63,18 @@ from CVE2PoC.core.mitigations import (
     get_sentinelone_vulnerability_database_mitigations,
 )
 from CVE2PoC.core.config import BASE_DIR
+from CVE2PoC.core.theme import console, section, poc_header
+
+# Everything the tool prints goes through the Rosé Pine console.
+rprint = console.print
+
+
+def _themed_table(**kwargs):
+    """A rich Table pre-dressed in the palette (rounded, muted borders)."""
+    kwargs.setdefault("box", box.ROUNDED)
+    kwargs.setdefault("border_style", "muted")
+    kwargs.setdefault("header_style", "heading")
+    return Table(**kwargs)
 
 
 def main():
@@ -143,6 +155,9 @@ def main():
         help="Configure your GitHub and NVD API keys (Not required)",
     )
     parser.add_argument("--no-banner", action="store_true", help="Remove banner")
+    parser.add_argument(
+        "--no-anim", action="store_true", help="Static banner, no startup animation"
+    )
     # Enable argcomplete
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
@@ -316,9 +331,7 @@ def main():
                     rprint(f"The CVE IDs have been successfully written in {f.name}")
                     sys.exit(0)
             else:
-                rprint(
-                    f"List of Affected CVE IDs\n{'-' * len('List of affected CVE IDs')}"
-                )
+                section("List of Affected CVE IDs")
                 print(cve_ids)
                 sys.exit(0)
 
@@ -326,15 +339,16 @@ def main():
     if args.cve2cpe:
         cpes = cveid_to_cpe(args.cve2cpe)
         if cpes != "N/A":
-            print(
-                f"\nKnown Affected Software Configurations (CPE2.3)\n{'-' * len('Known Affected Software Configurations (CPE2.3)')}"
-            )
+            section("Known Affected Software Configurations (CPE2.3)")
             for cpe in cpes:
                 namespace, cpe_version, asset_type, vendor, product, product_version = (
                     cpe.split(":")
                 )
+                sep = "[muted]:[/muted]"
                 rprint(
-                    f"[bright_blue]{namespace}[/bright_blue][bright_white]:[/bright_white][bright_cyan]{cpe_version}[/bright_cyan][bright_white]:[/bright_white][dark_orange]{asset_type}[/dark_orange][bright_white]:[/bright_white][spring_green2]{vendor}[/spring_green2][bright_white]:[/bright_white][bright_yellow]{product}[/bright_yellow][bright_white]:[/bright_white][bright_red]{product_version}[/bright_red]"
+                    f"[iris]{namespace}[/iris]{sep}[foam]{cpe_version}[/foam]{sep}"
+                    f"[gold]{asset_type}[/gold]{sep}[pine]{vendor}[/pine]{sep}"
+                    f"[rose]{product}[/rose]{sep}[love]{product_version}[/love]"
                 )
             sys.exit(0)
         else:
@@ -347,15 +361,13 @@ def main():
             search_pre_built_vulnerable_docker_environments(cve_id)
         )
         if pre_built_vulnerable_docker_environments != "N/A":
-            print(
-                f"\nPre-Built Docker Environments\n{'-' * len('Pre-Built Docker Environments')}"
-            )
+            section("Pre-Built Docker Environments")
             rprint(pre_built_vulnerable_docker_environments)
         # Search THM rooms and HTB machines related to a CVE ID
         labs = search_ctf_labs(cve_id)
         if labs:
-            print(f"\nHands-On Labs\n{'-' * len('Hands-On Labs')}")
-            table = Table(show_lines=True, header_style="bold")
+            section("Hands-On Labs")
+            table = _themed_table(show_lines=True)
             table.add_column("Platform")
             table.add_column("Room/Machine")
             if labs.get("htb"):
@@ -371,8 +383,8 @@ def main():
         cve_id = args.bugbounty_reports
         bug_bounty_reports = search_bug_bounty_reports(args.bugbounty_reports)
         if bug_bounty_reports:
-            print(f"\nBug Bounty Reports\n{'-' * len('Bug Bounty Reports')}")
-            table = Table(show_lines=True, header_style="bold")
+            section("Bug Bounty Reports")
+            table = _themed_table(show_lines=True)
             table.add_column("Source")
             table.add_column("PoC")
             table.add_column("Report")
@@ -397,7 +409,7 @@ def main():
 
     # Display banner
     if not args.no_banner:
-        banner()
+        banner(animate=not args.no_anim)
 
     if args.limit < 1:
         parser.error("--limit must be >= 1")
@@ -427,15 +439,17 @@ def main():
             # json_report stores the report information in a json format
             json_report = {}
             progress_bar = Progress(
-                TextColumn("[bold gold1]{task.description}"),
+                SpinnerColumn(style="iris"),
+                TextColumn("[heading]{task.description}"),
                 BarColumn(),
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TextColumn("•"),
+                TextColumn("[dim]•"),
                 MofNCompleteColumn(),
-                TextColumn("•"),
+                TextColumn("[dim]•"),
                 TimeElapsedColumn(),
-                TextColumn("•"),
+                TextColumn("[dim]•"),
                 TimeRemainingColumn(),
+                console=console,
             )
             with progress_bar as p:
                 exploits_db = download_exploits_db()
@@ -589,9 +603,10 @@ def main():
         sys.exit(0)
 
     with Progress(
-        SpinnerColumn(),
+        SpinnerColumn(style="iris"),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
+        console=console,
     ) as progress:
         if args.cve:
             cve_id = args.cve
@@ -639,15 +654,12 @@ def main():
             # Display additional information if description flag was specified
             if args.description:
                 cve_description = get_cve_description(cve_id.upper())
+                section("Description")
                 if cve_description != "N/A":
                     cve_description = re.sub(r"\s+", " ", cve_description)
-                    rprint(
-                        f"\nDescription\n{'-' * len('Description')}\n{cve_description}"
-                    )
+                    rprint(f"[text]{cve_description}[/text]")
                 else:
-                    rprint(
-                        f"\nDescription\n{'-' * len('Description')}\n[red3][-][/red3] No description found!"
-                    )
+                    rprint("[red3][-][/red3] No description found!")
 
                 # Check whether CVE ID is a KEV and if it's being used in ransomware campaigns
                 if cve_record["kev"] == "Yes":
@@ -656,14 +668,13 @@ def main():
                     )
                     if known_to_be_used_in_ransomware_campaigns == "Known":
                         known_to_be_used_in_ransomware_campaigns = "[red3]Known[/red3]"
-                    rprint(
-                        f"\nKnown To Be Used in Ransomware Campaigns?\n{'-' * len('Known To Be Used in Ransomware Campaigns?')}\n{known_to_be_used_in_ransomware_campaigns}"
-                    )
+                    section("Known To Be Used in Ransomware Campaigns?")
+                    rprint(known_to_be_used_in_ransomware_campaigns)
 
                 # References
                 references = get_cve_references(cve_id, cve_record)
-                rprint(f"\nReferences\n{'-' * len('References')}")
-                reference_table = Table(show_lines=True, header_style="bold")
+                section("References")
+                reference_table = _themed_table(show_lines=True)
                 reference_table.add_column("Source", overflow="fold", justify="center")
                 reference_table.add_column("URL", overflow="fold", justify="center")
                 for reference, url in references.items():
@@ -819,9 +830,8 @@ def main():
                             poc_title = f"PoC n°{counter}"
                             if counter > args.limit:
                                 break
-                            rprint(
-                                f"[red3]{' ' * 46}┌{len(f'{poc_title}') * '─'}┐\n{'─' * 46}│{poc_title.center(len(poc_title))}│{'─' * 46}\n{' ' * 46}└{len(poc_title) * '─'}┘[/red3]\n{poc}"
-                            )
+                            rprint(poc_header(poc_title))
+                            rprint(poc)
                     if not trickest_cve_pocs:
                         rprint(
                             f"\n[red3][-][/red3] No PoCs found on GitHub for {cve_id.upper()}!"
@@ -838,17 +848,16 @@ def main():
 
     # Search exploits on ExploitDB, Metasploit and Nuclei
     with Progress(
-        SpinnerColumn(),
+        SpinnerColumn(style="iris"),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
+        console=console,
     ) as progress:
         progress.add_task(
             description="[bright_blue][*][/bright_blue] Searching for exploits on other sources...",
             total=None,
         )
-        rprint(
-            f"[red3]{' ' * 38}┌{len('PoCs From Other Sources') * '─'}┐\n{'─' * 38}│{'PoCs From Other Sources'.center(len('PoCs From Other Sources'))}│{'─' * 38}\n{' ' * 38}└{len('PoCs From Other Sources') * '─'}┘[/red3]"
-        )
+        section("PoCs From Other Sources")
         # Download exploit_db, msfconsole and nuclei databases
         msf_modules_db_json, exploit_db_csv, nuclei_db_json = download_exploits_db()
         sources = search_exploits_from_other_sources(
@@ -879,17 +888,16 @@ def main():
 
     # Search pre-built vulnerable Docker environments in Vulhub
     with Progress(
-        SpinnerColumn(),
+        SpinnerColumn(style="iris"),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
+        console=console,
     ) as progress:
         progress.add_task(
             description="[bright_blue][*][/bright_blue] Searching pre-built vulnerable Docker environments...",
             total=None,
         )
-        rprint(
-            f"[bright_cyan]{' ' * 30}┌{len('Pre-Built Vulnerable Docker Environment') * '─'}┐\n{'─' * 30}│{'Pre-Built Vulnerable Docker Environment'.center(len('Pre-Built Vulnerable Docker Environment'))}│{'─' * 30}\n{' ' * 30}└{len('Pre-Built Vulnerable Docker Environment') * '─'}┘[/bright_cyan]"
-        )
+        section("Pre-Built Vulnerable Docker Environment")
         vulnerable_docker_environment_setup = (
             search_pre_built_vulnerable_docker_environments(cve_id)
         )

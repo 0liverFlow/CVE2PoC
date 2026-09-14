@@ -1,7 +1,6 @@
 import yaml
 import requests
 from bs4 import BeautifulSoup as bsoup
-from rich import print as rprint
 
 import re
 import json
