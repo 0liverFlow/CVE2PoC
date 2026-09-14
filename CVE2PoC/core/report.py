@@ -31,7 +31,10 @@ def generate_json_report(data, output_dir_path):
 
 def generate_html_report(data, output_dir_path):
     """
-    This function generates a HTML report containing CVE IDs information
+    This function generates a HTML report containing CVE IDs information.
+
+    The report is painted in Rosé Pine — Main, Moon and Dawn ship together with an
+    in-page switcher, and the default follows the viewer's OS light/dark setting.
 
     :param data: A dictionary containing CVE IDs information
     :param output_dir_path: Ouptut directory to store the HTML report
@@ -40,12 +43,13 @@ def generate_html_report(data, output_dir_path):
         datetime.now().date(),
         datetime.now().strftime("%H:%M:%S"),
     )
-    head_and_body = (
-        """
+
+    head = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>CVE2PoC Report</title>
 
         <!-- jQuery -->
@@ -55,329 +59,250 @@ def generate_html_report(data, output_dir_path):
         <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
         <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        
-        <!-- Custom CSS -->
     """
-        + """
+
+    style = """
         <style>
-            :root {
-                --bg: #f4f6f9;
-                --text: #1f2937;
-                --card: #ffffff;
-                --border: #e5e7eb;
-                --header: #f9fafb;
+            /* ── Rosé Pine palettes ─────────────────────────────────────── */
+            :root, :root[data-theme="main"] {
+                --base:#191724; --surface:#1f1d2e; --overlay:#26233a;
+                --muted:#6e6a86; --subtle:#908caa; --text:#e0def4;
+                --love:#eb6f92; --gold:#f6c177; --rose:#ebbcba;
+                --pine:#31748f; --foam:#9ccfd8; --iris:#c4a7e7;
+                --hl-med:#403d52; --hl-high:#524f67;
+            }
+            :root[data-theme="moon"] {
+                --base:#232136; --surface:#2a273f; --overlay:#393552;
+                --muted:#6e6a86; --subtle:#908caa; --text:#e0def4;
+                --love:#eb6f92; --gold:#f6c177; --rose:#ea9a97;
+                --pine:#3e8fb0; --foam:#9ccfd8; --iris:#c4a7e7;
+                --hl-med:#44415a; --hl-high:#56526e;
+            }
+            :root[data-theme="dawn"] {
+                --base:#faf4ed; --surface:#fffaf3; --overlay:#f2e9e1;
+                --muted:#9893a5; --subtle:#797593; --text:#575279;
+                --love:#b4637a; --gold:#ea9d34; --rose:#d7827e;
+                --pine:#286983; --foam:#56949f; --iris:#907aa9;
+                --hl-med:#dfdad9; --hl-high:#cecacd;
+            }
+            /* Follow the OS when nothing is chosen: light → Dawn. */
+            @media (prefers-color-scheme: light) {
+                :root:not([data-theme]) {
+                    --base:#faf4ed; --surface:#fffaf3; --overlay:#f2e9e1;
+                    --muted:#9893a5; --subtle:#797593; --text:#575279;
+                    --love:#b4637a; --gold:#ea9d34; --rose:#d7827e;
+                    --pine:#286983; --foam:#56949f; --iris:#907aa9;
+                    --hl-med:#dfdad9; --hl-high:#cecacd;
+                }
             }
 
-            body.dark {
-                --bg: #111827;
-                --text: #e5e7eb;
-                --card: #1f2937;
-                --border: #374151;
-                --header: #1f2937;
-            }
-
+            html { color-scheme: dark light; }
             body {
-                font-family: 'Inter', sans-serif;
-                background-color: var(--bg);
+                font-family: 'Inter', system-ui, sans-serif;
+                background: var(--base);
                 color: var(--text);
                 margin: 0;
-                padding: 0 40px 60px;
+                padding: 0 40px 72px;
+                transition: background .2s ease, color .2s ease;
             }
+            a { text-decoration: none; color: var(--iris); }
+            a:hover { text-decoration: underline; }
 
-            a {
-                text-decoration: none;
-                color: black;
-            }
-
-            body.dark a {
-                color: white;
-            }
-
-            .report-header {
-                margin: 40px 0 30px;
-            }
-
+            /* ── Header ─────────────────────────────────────────────────── */
+            .report-header { margin: 40px 0 26px; }
             .report-title {
-                font-size: 30px;
-                font-weight: 700;
-                margin: 0;
+                font-size: 30px; font-weight: 700; margin: 0;
+                letter-spacing: .5px; color: var(--text);
+            }
+            .title-flower { color: var(--rose); margin-right: 6px; }
+            .report-subtitle { font-size: 14px; color: var(--subtle); margin-top: 6px; }
+            .report-rule {
+                height: 3px; width: 260px; border-radius: 2px; margin-top: 16px;
+                background: linear-gradient(90deg,
+                    var(--pine), var(--foam), var(--iris), var(--rose), var(--gold));
             }
 
-            .report-subtitle {
-                font-size: 15px;
-                color: #6b7280;
-                margin-top: 6px;
+            /* ── Theme switcher ─────────────────────────────────────────── */
+            .theme-switch-wrap { position: absolute; top: 40px; right: 40px; }
+            .theme-switch {
+                display: inline-flex; gap: 4px; padding: 4px;
+                background: var(--surface); border: 1px solid var(--hl-med);
+                border-radius: 12px;
+            }
+            .theme-switch button {
+                border: none; background: transparent; color: var(--subtle);
+                width: 34px; height: 30px; border-radius: 8px; cursor: pointer;
+                font-size: 15px; line-height: 1; transition: all .15s ease;
+            }
+            .theme-switch button:hover { color: var(--text); background: var(--overlay); }
+            .theme-switch button.active {
+                color: var(--iris);
+                background: color-mix(in srgb, var(--iris) 20%, transparent);
+                box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--iris) 45%, transparent);
             }
 
-            #pageFooter {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                text-align: center;
-                padding: 10px 0;
-                font-size: 0.85em;
-                background-color: var(--card);
-                color: var(--text);
-                border-top: 1px solid var(--border);
+            /* ── Pills ──────────────────────────────────────────────────── */
+            .badge, .cvss-badge, .epss-badge {
+                display: inline-block; border-radius: 6px; font-weight: 700;
+                font-size: 13px; border: 1px solid transparent;
+            }
+            .badge { padding: 3px 9px; }
+            .cvss-badge, .epss-badge { padding: 4px 9px; min-width: 38px; text-align: center; }
+            .badge a { color: inherit; text-decoration: none; font-weight: inherit; }
+
+            .badge.yes {
+                color: var(--foam);
+                background: color-mix(in srgb, var(--foam) 16%, transparent);
+                border-color: color-mix(in srgb, var(--foam) 40%, transparent);
+            }
+            .badge.no {
+                color: var(--muted);
+                background: color-mix(in srgb, var(--muted) 14%, transparent);
+                border-color: color-mix(in srgb, var(--muted) 30%, transparent);
             }
 
-            .badge {
-                padding: 3px 8px;
-                border-radius: 4px;
-                font-size: 14px;
-                color: white;
-                font-weight: 500;
+            .cvss-critical, .epss-high {
+                color: var(--love);
+                background: color-mix(in srgb, var(--love) 20%, transparent);
+                border-color: color-mix(in srgb, var(--love) 45%, transparent);
+            }
+            .cvss-high {
+                color: var(--rose);
+                background: color-mix(in srgb, var(--rose) 20%, transparent);
+                border-color: color-mix(in srgb, var(--rose) 45%, transparent);
+            }
+            .cvss-medium, .epss-medium {
+                color: var(--gold);
+                background: color-mix(in srgb, var(--gold) 20%, transparent);
+                border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+            }
+            .cvss-low, .epss-low {
+                color: var(--foam);
+                background: color-mix(in srgb, var(--foam) 18%, transparent);
+                border-color: color-mix(in srgb, var(--foam) 42%, transparent);
+            }
+            .cvss-na {
+                color: var(--muted);
+                background: color-mix(in srgb, var(--muted) 14%, transparent);
+                border-color: color-mix(in srgb, var(--muted) 30%, transparent);
             }
 
-            .badge a {
-                color: inherit;
-                text-decoration: none;
-                font-weight: inherit;
-            }
-
-            .yes { background-color: #28a745; }
-            .no { background-color: #dc3545; }
-
-            .cvss-badge {
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-                display: inline-block;
-                min-width: 40px;
-                text-align: center;
-            }
-
-            .cvss-low { background: #66c240; color: white; }
-            .cvss-medium { background: #f59e0b; color: white; }
-            .cvss-high { background: #f97316; color: white; }
-            .cvss-critical { background: #dc2626; color: white; }
-            .cvss-na { background: #9ca3af; color: white; }
-
-            .epss-badge {
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-                min-width: 40px;
-                text-align: center;
-            }
-
-            .epss-high {
-                background: #dc2626;
-                color: white;
-            }
-
-            .epss-medium {
-                background: #f97316;
-                color: white;
-            }
-
-            .epss-low {
-                background: #66c240;
-                color: white;
-            }
-
+            /* ── Table ──────────────────────────────────────────────────── */
             table.dataTable {
                 border: none !important;
-                background-color: var(--card) !important;
+                background: var(--surface) !important;
+                border-radius: 12px;
             }
-
             table.dataTable thead th {
                 cursor: pointer;
+                border-bottom: 2px solid var(--hl-med) !important;
             }
-
             thead th {
-                position: sticky;
-                top: 0;
-                z-index: 1;
-                background: var(--header) !important;
+                position: sticky; top: 0; z-index: 2;
+                background: var(--overlay) !important;
+                color: var(--iris) !important;
+                font-weight: 600;
+            }
+            table.dataTable tbody tr,
+            table.dataTable tbody tr.odd { background: var(--surface); }
+            table.dataTable tbody tr.even {
+                background: color-mix(in srgb, var(--overlay) 45%, var(--surface));
+            }
+            table.dataTable tbody tr:hover { background: var(--overlay) !important; }
+            table.dataTable tbody td {
+                border-top: 1px solid var(--hl-med) !important;
                 color: var(--text);
             }
-
-            tfoot {
-                display: table-header-group;
-            }
-
-            .filter-bar {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 20px;
-            }
-
-            .filter-bar input,
-            .filter-bar select {
-                padding: 8px 10px;
-                border: 1px solid #d1d5db;
-                border-radius: 6px;
-                font-size: 14px;
-            }
-
-            .filter-bar input {
-                flex: 1;
-            }
-
-            .filter-bar button {
-                padding: 8px 14px;
-                background: #111827;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-            }
-
-            .filter-bar button:hover {
-                background: #374151;
-            }
-
-            .vector-filter {
-                margin-bottom: 15px;
-                display: flex;
-                gap: 12px;
-                flex-wrap: wrap;
-                font-size: 14px;
-            }
-
-            .filter-row th {
-                background: var(--header);
-                padding: 8px;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .filter-row input,
-            .filter-row select {
-                width: 100%;
-                padding: 6px 8px;
-                font-size: 12px;
-                border: 1px solid var(--border);
-                border-radius: 6px;
-                background: var(--card);
-                color: var(--text);
-            }
-
-            .filter-row input:focus,
-            .filter-row select:focus {
-                outline: none;
-                border-color: #9ca3af;
-            }
-
-            .filter-row input::placeholder {
-                color: #9ca3af;
-            }
-
-            body.dark .filter-row input::placeholder {
-                color: #6b7280;
-            }
-
-            .clear-btn,
-            .reset-btn {
-                padding: 6px 12px;
-                font-size: 14px;
-                cursor: pointer;
-                border-radius: 6px;
-            }
-
-            .clear-btn {
-                margin-left: 10px;
-            }
-
-            .reset-btn {
-                font-weight: 500;
-                background-color: #111827;
-                color: white;
-                border: none;
-                margin-left: 10px;
-            }
-
-            .reset-btn:hover {
-                background-color: #374151;
-            }
-
-            .reset-container {
-                display: flex;
-                justify-content: flex-end;
-                align-items: center;
-            }
-
-            .theme-btn {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 6px 12px;
-                border-radius: 8px;
-                border: 1px solid var(--border);
-                background: var(--card);
-                color: var(--text);
-                font-size: 13px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .theme-btn:hover {
-                background: #e5e7eb;
-            }
-
-            body.dark .theme-btn:hover {
-                background: #374151;
-            }
-
-            .dataTables_wrapper .dataTables_length {
-                color: var(--text);
-            }
-
-            .dataTables_wrapper .dataTables_length select {
-                background: var(--card);
-                color: var(--text);
-                border: 1px solid var(--border);
-                border-radius: 6px;
-                padding: 4px 6px;
-            }
-
-            .dataTables_wrapper .dataTables_length select:focus {
-                outline: none;
-                border-color: #9ca3af;
-            }
+            tfoot { display: table-header-group; }
 
             td.vector-string {
-                word-break: break-all;
-                max-width: 350px;
-                white-space: normal;
+                word-break: break-all; max-width: 350px; white-space: normal;
+                color: var(--subtle); font-size: 12.5px;
             }
 
-            tfoot select {
-                width: 100%;
-                padding: 4px;
-                border-radius: 4px;
-                font-family: Inter, sans-serif;
+            /* ── Footer filter row ──────────────────────────────────────── */
+            .filter-row th {
+                background: var(--overlay);
+                padding: 8px;
+                border-bottom: 1px solid var(--hl-med);
+            }
+            .filter-row input, .filter-row select, tfoot select {
+                width: 100%; padding: 6px 8px; font-size: 12px;
+                border: 1px solid var(--hl-med); border-radius: 6px;
+                background: var(--surface); color: var(--text);
+                font-family: inherit;
+            }
+            .filter-row input:focus, .filter-row select:focus {
+                outline: none; border-color: var(--iris);
+            }
+            .filter-row input::placeholder { color: var(--muted); }
+
+            /* ── Reset button ───────────────────────────────────────────── */
+            .reset-container { display: flex; justify-content: flex-end; align-items: center; }
+            .reset-btn {
+                padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+                border-radius: 8px; margin-left: 10px; border: 1px solid transparent;
+                color: var(--iris);
+                background: color-mix(in srgb, var(--iris) 16%, transparent);
+                border-color: color-mix(in srgb, var(--iris) 38%, transparent);
+            }
+            .reset-btn:hover { background: color-mix(in srgb, var(--iris) 26%, transparent); }
+
+            /* ── DataTables chrome ──────────────────────────────────────── */
+            .dataTables_wrapper .dataTables_length,
+            .dataTables_wrapper .dataTables_filter,
+            .dataTables_wrapper .dataTables_info { color: var(--subtle); }
+            .dataTables_wrapper .dataTables_length select,
+            .dataTables_wrapper .dataTables_filter input {
+                background: var(--surface); color: var(--text);
+                border: 1px solid var(--hl-med); border-radius: 6px; padding: 4px 8px;
+            }
+            .dataTables_wrapper .dataTables_length select:focus,
+            .dataTables_wrapper .dataTables_filter input:focus {
+                outline: none; border-color: var(--iris);
+            }
+            .dataTables_wrapper .dataTables_paginate .paginate_button {
+                color: var(--subtle) !important; border: none !important;
+            }
+            .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+                color: var(--text) !important;
+                background: var(--overlay) !important;
+                border: 1px solid var(--hl-med) !important;
+            }
+            .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+            .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+                color: var(--iris) !important;
+                background: color-mix(in srgb, var(--iris) 18%, transparent) !important;
+                border: 1px solid color-mix(in srgb, var(--iris) 40%, transparent) !important;
+                border-radius: 6px;
             }
 
-            body:not(.dark) tfoot select {
-                background: #fff;
-                color: #111;
-                border: 1px solid #ccc;
+            /* ── Page footer ────────────────────────────────────────────── */
+            #pageFooter {
+                position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
+                padding: 11px 0; font-size: .82em;
+                background: var(--surface); color: var(--subtle);
+                border-top: 1px solid var(--hl-med);
             }
-
-            /* Dark theme */
-            body.dark tfoot select {
-                background: #1f2937;
-                color: #f1f1f1;
-                border: 1px solid #444;
-            }      
-        </style> 
+            .foot-flower { color: var(--rose); }
+            .foot-sep { color: var(--muted); margin: 0 6px; }
+        </style>
     """
-        + f"""
+
+    body_open = f"""
     </head>
     <body>
-        <div class="report-header">
-            <h1 class="report-title">CVE2POC Report</h1>
-            <div class="report-subtitle">
-                This report was generated on {report_date} at {report_time}
+        <div class="theme-switch-wrap">
+            <div class="theme-switch" role="group" aria-label="Theme">
+                <button data-theme="main" title="Rosé Pine">◐</button>
+                <button data-theme="moon" title="Rosé Pine Moon">☾</button>
+                <button data-theme="dawn" title="Rosé Pine Dawn">☀</button>
             </div>
-        </div>  
-        <div style="position:absolute; top:40px; right:40px;">
-            <button id="themeToggle" class="theme-btn"></button>
+        </div>
+        <div class="report-header">
+            <h1 class="report-title"><span class="title-flower">❀</span>CVE2PoC Report</h1>
+            <div class="report-subtitle">Generated on {report_date} at {report_time}</div>
+            <div class="report-rule"></div>
         </div>
         <table id="report" class="display" style="width:100%">
             <thead>
@@ -431,13 +356,16 @@ def generate_html_report(data, output_dir_path):
             </tfoot>
             <tbody>
     """
-    )
 
-    footer = """
+    head_and_body = head + style + body_open
+
+    footer = r"""
     </tbody>
     </table>
     <div id="pageFooter">
-        Made with <span style="color: red;">&#10084;</span> by 0liverFlow
+        <span class="foot-flower">❀</span> CVE2PoC · Rosé Pine
+        <span class="foot-sep">·</span> themed for DΛΣMOΘΠ-SEC
+        <span class="foot-sep">·</span> upstream by 0liverFlow
     </div>
     <!-- Custom JS -->
     <script>
@@ -561,7 +489,7 @@ def generate_html_report(data, output_dir_path):
                         return data;
                     }
                 }
-            
+
             ],
 
             initComplete: function () {
@@ -594,7 +522,7 @@ def generate_html_report(data, output_dir_path):
 
                     table.search('').columns().search('').draw();
                 });
-                
+
                 $('.cvss-filter-footer, .epss-filter-footer').on('change', function () {
                     table.draw();
                 });
@@ -603,21 +531,28 @@ def generate_html_report(data, output_dir_path):
 
     });
 
-    $('#themeToggle').on('click', function() {
-        $('body').toggleClass('dark');
-
-        let isDark = $('body').hasClass('dark');
-        $(this).html(isDark ? '☀️' : '🌙');
-
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    });
-
-    if (localStorage.getItem('theme') === 'dark') {
-        $('body').addClass('dark');
-        $('#themeToggle').html('☀️');
-    } else {
-        $('#themeToggle').html('🌙');
+    // ── Rosé Pine theme switcher ──────────────────────────────────────────
+    function applyTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        document.querySelectorAll('.theme-switch button').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.theme === t);
+        });
+        try { localStorage.setItem('cve2poc-theme', t); } catch (e) {}
     }
+
+    (function () {
+        var saved = null;
+        try { saved = localStorage.getItem('cve2poc-theme'); } catch (e) {}
+        if (!saved) {
+            saved = (window.matchMedia &&
+                     window.matchMedia('(prefers-color-scheme: light)').matches)
+                ? 'dawn' : 'main';
+        }
+        applyTheme(saved);
+        document.querySelectorAll('.theme-switch button').forEach(function(b) {
+            b.addEventListener('click', function () { applyTheme(b.dataset.theme); });
+        });
+    })();
 
     function getCvssClass(score) {
         if (score === "N/A" || score === "") return "cvss-na";
@@ -636,8 +571,6 @@ def generate_html_report(data, output_dir_path):
         if cve_data["PoCs"]["GitHub"] != "No":
             if "nomi-sec" in cve_data["PoCs"]["GitHub"][0]:
                 gh_td = f"<td><span class='badge yes'><a href='https://poc-in-github.motikan2010.net/api/v1/?cve_id={cve}' target='_blank'>Yes ({cve_data['PoCs']['GitHub'][-1]})</a></span></td>"
-            # gh_td = f"<td><span class='badge yes'><a href='https://poc-in-github.motikan2010.net/api/v1/?cve_id={cve}' target='_blank'>Yes</a></span></td>"
-            # gh_td = f"<td><span class='badge yes'><a href='{cve_data['PoCs']['GitHub']}' target='_blank'>Yes</a></span></td>"
             else:
                 gh_td = f"<td><span class='badge yes'><a href='https://github.com/trickest/cve/blob/main{cve_data['PoCs']['GitHub'][0].split('main')[-1]}' target='_blank'>Yes ({cve_data['PoCs']['GitHub'][-1]})</a></span></td>"
         else:
@@ -655,7 +588,6 @@ def generate_html_report(data, output_dir_path):
         else:
             nuclei_td = "<td><span class='badge no'>No</a></span></td>"
 
-        # <td><a href='https://www.cve.org/CVERecord?id={cve}' target='_blank'>{cve}</a></td>
         if len(cve_data["CWE"].split(",")) > 1:
             cwes = cve_data["CWE"].split(",")
             cwe_td = "<td>"
@@ -669,8 +601,6 @@ def generate_html_report(data, output_dir_path):
             cwe_td = f"<td><a href='https://cwe.mitre.org/data/definitions/{cve_data['CWE'].split('-')[-1]}.html' target='_blank'>{cve_data['CWE']}</a></td>"
         else:
             cwe_td = "<td>N/A</td>"
-
-        # <td>{cve_data['CWE']}</td>
 
         head_and_body += f"""
         <tr>
@@ -686,7 +616,6 @@ def generate_html_report(data, output_dir_path):
             {nuclei_td}
         </tr>
         """
-    # <td data-search=f"{cve_data['PoCs']['GitHub'].split('(')[-1].replace(')','')}"><span class="{'badge yes' if cve_data['PoCs']['GitHub'] != 'No' else 'badge no'}">{cve_data['PoCs']['GitHub']}</span></td>
     html_report = head_and_body + footer
 
     with open(
@@ -697,6 +626,7 @@ def generate_html_report(data, output_dir_path):
         f.write(html_report)
         return True
     return False
+
 
 def get_cve_record_and_exploits(cve_id, headers, kevs, epss_data, exploits_db):
     """

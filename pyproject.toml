@@ -28,8 +28,9 @@ classifiers=[
 cve2poc = "CVE2PoC:main"
 
 [project.urls]
-homepage = "https://github.com/0liverFlow/CVE2PoC"
-issues = "https://github.com/0liverFlow/CVE2PoC/issues"
+homepage = "https://github.com/DAEMON-404/CVE2PoC"
+issues = "https://github.com/DAEMON-404/CVE2PoC/issues"
+upstream = "https://github.com/0liverFlow/CVE2PoC"
 
 [build-system]
 requires = ["hatchling"]

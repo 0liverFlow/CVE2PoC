@@ -1,4 +1,24 @@
+from rich import box
+from rich.markup import escape
 from rich.table import Table
+
+from CVE2PoC.core.theme import poc_header
+
+# 2025 CWE Top 25 Most Dangerous Software Weaknesses — flagged as high-attention.
+CWE_TOP_25 = {
+    "CWE-79", "CWE-89", "CWE-352", "CWE-862", "CWE-787", "CWE-22", "CWE-416",
+    "CWE-125", "CWE-78", "CWE-94", "CWE-120", "CWE-434", "CWE-476", "CWE-121",
+    "CWE-502", "CWE-122", "CWE-863", "CWE-20", "CWE-284", "CWE-200", "CWE-306",
+    "CWE-918", "CWE-77", "CWE-639", "CWE-770",
+}
+
+# Severity → Rosé Pine ramp (foam → gold → rose → love).
+SEVERITY_STYLES = {
+    "LOW": "sev.low",
+    "MEDIUM": "sev.medium",
+    "HIGH": "sev.high",
+    "CRITICAL": "sev.critical",
+}
 
 
 def display_cve_info(cve_record):
@@ -8,32 +28,25 @@ def display_cve_info(cve_record):
     :param cve_record: This is a dictionary containing the CVE ID's information
     """
 
-    SEVERITY_STYLES = {
-        "LOW": "spring_green2",
-        "MEDIUM": "gold1",
-        "HIGH": "dark_orange",
-        "CRITICAL": "red1",
-    }
-
     base_score = cve_record["base_score"]
     if base_score != "N/A":
         if base_score < 4:
-            base_score = f"[spring_green2]{cve_record['base_score']}[/spring_green2]"
+            base_score = f"[sev.low]{cve_record['base_score']}[/sev.low]"
         elif base_score < 7:
-            base_score = f"[gold1]{cve_record['base_score']}[/gold1]"
+            base_score = f"[sev.medium]{cve_record['base_score']}[/sev.medium]"
         elif base_score < 9:
-            base_score = f"[dark_orange]{cve_record['base_score']}[/dark_orange]"
+            base_score = f"[sev.high]{cve_record['base_score']}[/sev.high]"
         else:
-            base_score = f"[red1]{cve_record['base_score']}[/red1]"
+            base_score = f"[sev.critical]{cve_record['base_score']}[/sev.critical]"
 
     epss_score = cve_record["epss_score"]
     if epss_score != "N/A":
         if epss_score >= 70:
-            epss_score = f"[red1]{cve_record['epss_score']}%[/red1]"
+            epss_score = f"[error]{cve_record['epss_score']}%[/error]"
         elif epss_score >= 40:
-            epss_score = f"[dark_orange]{cve_record['epss_score']}%[/dark_orange]"
+            epss_score = f"[warn]{cve_record['epss_score']}%[/warn]"
         else:
-            epss_score = f"[spring_green2]{cve_record['epss_score']}%[/spring_green2]"
+            epss_score = f"[foam]{cve_record['epss_score']}%[/foam]"
 
     severity_style = SEVERITY_STYLES.get(cve_record["severity"], "")
     if severity_style:
@@ -45,37 +58,11 @@ def display_cve_info(cve_record):
         if cve_record["cwe"]:
             cwes = []
             for cwe in cve_record["cwe"]:
-                # Checking if a CWE is part of the 2025 CWE Top 25 Most Dangerous Software Weaknesses
-                if cwe in [
-                    "CWE-79",
-                    "CWE-89",
-                    "CWE-352",
-                    "CWE-862",
-                    "CWE-787",
-                    "CWE-22",
-                    "CWE-416",
-                    "CWE-125",
-                    "CWE-78",
-                    "CWE-94",
-                    "CWE-120",
-                    "CWE-434",
-                    "CWE-476",
-                    "CWE-121",
-                    "CWE-502",
-                    "CWE-122",
-                    "CWE-863",
-                    "CWE-20",
-                    "CWE-284",
-                    "CWE-200",
-                    "CWE-306",
-                    "CWE-918",
-                    "CWE-77",
-                    "CWE-639",
-                    "CWE-770",
-                ]:
-                    cwes.append(f"[bright_blue]{cwe}[/bright_blue]")
+                # Highlight CWEs in the 2025 CWE Top 25 in gold, the rest in foam.
+                if cwe in CWE_TOP_25:
+                    cwes.append(f"[warn]{cwe}[/warn]")
                 else:
-                    cwes.append(f"[bright_cyan]{cwe}[/bright_cyan]")
+                    cwes.append(f"[foam]{cwe}[/foam]")
             cwe = ",".join(cwes)
         else:
             cwe = "N/A"
@@ -83,15 +70,17 @@ def display_cve_info(cve_record):
         cwe = "N/A"
 
     if cve_record["kev"] == "Yes":
-        kev = "[red1]Yes[/red1]"
+        kev = "[error]Yes[/error]"
     else:
         kev = cve_record["kev"]
 
     table = Table(
         show_lines=True,
-        header_style="bold",
+        box=box.ROUNDED,
+        border_style="muted",
+        header_style="heading",
         title=cve_record["cve_id"],
-        title_style="bold",
+        title_style="bold accent",
         title_justify="center",
     )
     table.add_column("Publication Date", justify="center")
@@ -125,8 +114,20 @@ def display_poc_info(poc, poc_title, gh_api_key):
     :param poc_title: This is the PoC title to display
     :param gh_api_key: This is your GitHub API key
     """
-    if poc["programming_language"] == "N/A" and gh_api_key is None:
-        return f"""[red3]{" " * 46}┌{len(f"{poc_title}") * "─"}┐\n{"─" * 46}│{poc_title.center(len(poc_title))}│{"─" * 46}\n{" " * 46}└{len(poc_title) * "─"}┘[/red3]\nDescription: {poc["description"] if poc["description"] is not None else "N/A"}\nClone URL: {poc["html_url"]}\nStars: [gold1]{poc["stargazers_count"]}[/gold1]\nForks: [gold1]{poc["forks"]}[/gold1]\n"""
-    else:
-        # The programming language will be returned only if the user submitted a correct API key or did not reach the GitHub API rate limit which is 60 requests/hour (https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
-        return f"""[red3]{" " * 46}┌{len(f"{poc_title}") * "─"}┐\n{"─" * 46}│{poc_title.center(len(poc_title))}│{"─" * 46}\n{" " * 46}└{len(poc_title) * "─"}┘[/red3]\nDescription: {poc["description"] if poc["description"] is not None else "N/A"}\nClone URL: {poc["html_url"]}\nStars: [gold1]{poc["stargazers_count"]}[/gold1]\nForks: [gold1]{poc["forks"]}[/gold1]\nProgramming Language: [orange_red1]{poc["programming_language"]}[/orange_red1]"""
+    description = poc["description"] if poc["description"] is not None else "N/A"
+    lines = [
+        poc_header(poc_title),
+        f"[subtle]Description:[/subtle] {escape(str(description))}",
+        f"[subtle]Clone URL:[/subtle]   [link]{escape(str(poc['html_url']))}[/link]",
+        (
+            f"[subtle]Stars:[/subtle] [gold]{poc['stargazers_count']}[/gold]"
+            f"   [subtle]Forks:[/subtle] [gold]{poc['forks']}[/gold]"
+        ),
+    ]
+    # The programming language is only present when a valid API key was given or
+    # the GitHub rate limit was not reached.
+    if not (poc["programming_language"] == "N/A" and gh_api_key is None):
+        lines.append(
+            f"[subtle]Language:[/subtle] [accent]{escape(str(poc['programming_language']))}[/accent]"
+        )
+    return "\n".join(lines)
