@@ -40,3 +40,12 @@ build-backend = "hatchling.build"
 include = [
     "CVE2PoC/*",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

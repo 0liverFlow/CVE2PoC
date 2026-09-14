@@ -1,4 +1,4 @@
-import requests
+from CVE2PoC.core import http
 from bs4 import BeautifulSoup as bsoup
 import tomli
 
@@ -13,7 +13,7 @@ def search_ctf_labs(cve_id):
     """
     labs = {}
     # Searching HTB machines related to CVE ID
-    xdf = requests.get("https://0xdf.gitlab.io/tags", {"User-Agent": get_user_agent()})
+    xdf = http.get("https://0xdf.gitlab.io/tags", {"User-Agent": get_user_agent()})
     soup = bsoup(xdf.text, "html.parser")
     cve_selector = soup.select(f'h2[id="{cve_id}" i] + ul')
     if cve_selector:
@@ -23,7 +23,7 @@ def search_ctf_labs(cve_id):
             + cve_selector[0].select("a")[0].text.split()[1].lower()
         )
     # Searching THM machines related to CVE ID
-    response = requests.get(
+    response = http.get(
         "https://raw.githubusercontent.com/0liverFlow/CVE2PoC-CI/refs/heads/main/latest_thm_rooms.txt",
         {"User-Agent": get_user_agent()},
     )
@@ -42,7 +42,7 @@ def search_pre_built_vulnerable_docker_environments(cve_id):
 
     :param cve_id: The CVE ID specified by the user
     """
-    response = requests.get(
+    response = http.get(
         "https://raw.githubusercontent.com/vulhub/vulhub/refs/heads/master/environments.toml",
         headers={"User-Agent": get_user_agent()},
     )

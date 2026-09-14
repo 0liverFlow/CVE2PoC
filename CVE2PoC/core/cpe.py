@@ -1,4 +1,4 @@
-import requests
+from CVE2PoC.core import http
 
 from CVE2PoC.core.user_agent import get_user_agent
 
@@ -10,7 +10,7 @@ def cveid_to_cpe(cve_id):
     :param cve_id: The CVE ID
     """
 
-    response = requests.get(
+    response = http.get(
         f"https://cvedb.shodan.io/cve/{cve_id}",
         headers={"User-Agent": get_user_agent()},
     )
@@ -25,7 +25,7 @@ def cpe_to_cveid(cpe_name):
     if not cpe_name.startswith("cpe:"):
         return "Incorrect Format"
     else:
-        response = requests.get(
+        response = http.get(
             f"https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName={cpe_name}",
             headers={"User-Agent": get_user_agent()},
         )

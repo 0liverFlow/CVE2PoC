@@ -48,6 +48,8 @@ Hand a CVE ID to CVE2PoC and it pulls back every public exploit and PoC — GitH
    * [Filters](#filters)
 - [Post Installation Setup](#post-installation-setup)
 - [Linting and Formating](#linting-and-formating)
+- [Tests](#tests)
+- [Changelog](#changelog)
 - [Credits](#credits)
 - [Disclaimer](#disclaimer)
 
@@ -134,9 +136,21 @@ options:
   --api-keys                        Configure your GitHub and NVD API keys (Not required)
   --no-banner                       Remove banner
   --no-anim                         Static banner, no startup animation
+  --refresh                         Force a fresh download of the cached feeds (KEV/EPSS/exploit DBs)
+  --no-cache                        Do not read or write the feed cache
+  --clear-cache                     Delete all cached feeds and exit
 ```
 
 Theme: set `CVE2POC_THEME=rose-pine|rose-pine-moon|rose-pine-dawn` to force a palette, or leave it unset to follow the Omarchy current theme.
+
+## Reliability & caching
+
+This fork also hardens the plumbing under the theming:
+
+- **Timeouts + retries** — every network call goes through one shared, pooled session with a timeout and automatic retry/backoff on transient errors (429/5xx, connection resets). A single slow host can no longer hang the whole run.
+- **Feed caching** — the big shared feeds (CISA KEV, EPSS, ExploitDB, Metasploit, Nuclei) are cached under `~/.cache/cve2poc` and reused for 24h instead of being re-downloaded on every invocation. `--refresh` forces a fresh pull, `--no-cache` bypasses it, `--clear-cache` empties it. If you're offline, a stale cache is used rather than failing.
+- **Config that survives reinstalls** — your GitHub/NVD API keys now live in `~/.config/cve2poc/.env` (XDG) instead of inside the installed package, so `pipx`/`uv` upgrades no longer wipe them. An existing in-package `.env` is migrated automatically on first run.
+- **Exit codes** — `0` success, `2` usage/config error, `3` network unreachable, `130` interrupted — so it behaves in scripts and pipelines.
 
 
 ## Public Exploits Finding
@@ -309,6 +323,19 @@ uv run ruff check --fix .
 # Run formatter
 uv run ruff format .
 ```
+
+# Tests
+
+```bash
+uv run --group dev pytest
+```
+
+The suite (in [`tests/`](tests)) is network-free: it covers theme/variant resolution and the legacy-colour remap, the HTTP session hardening, the feed cache (fresh/stale/offline), XDG config + legacy migration, HTML-report generation, and the banner fallback. CI runs ruff + pytest on every push (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+
+# Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for what this fork adds on top of upstream.
 
 
 # Credits

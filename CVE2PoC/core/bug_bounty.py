@@ -1,4 +1,4 @@
-import requests
+from CVE2PoC.core import http
 
 import csv
 import re
@@ -17,11 +17,11 @@ def search_bug_bounty_reports(cve_id):
     poc_is_available = "N/A"
 
     h1_reports_url = "https://raw.githubusercontent.com/reddelexc/hackerone-reports/refs/heads/master/data.csv"
-    h1_reports_pocs = requests.get(
+    h1_reports_pocs = http.get(
         "https://reports.fortisec.co.uk/data/poc-flags.json",
         headers={"User-Agent": get_user_agent()},
     )
-    h1_reports_data = requests.get(
+    h1_reports_data = http.get(
         h1_reports_url, headers={"User-Agent": get_user_agent()}
     )
     if h1_reports_data.status_code == 200:
@@ -43,7 +43,7 @@ def search_bug_bounty_reports(cve_id):
                 bug_bounty_reports["h1"] = poc_is_available, h1_report_link
                 break
 
-    pentesterland = requests.get(
+    pentesterland = http.get(
         "https://pentester.land/writeups.json", headers={"User-Agent": get_user_agent()}
     )
     if pentesterland.status_code == 200:
@@ -56,7 +56,7 @@ def search_bug_bounty_reports(cve_id):
 
     if not bug_bounty_reports.get("pentesterland"):
         # PentesterLand and Bug Bounty Hunting Search Engine share almost the same reports. That's why I used the Bug Bounty Hunting Search Engine as a fallback
-        bug_bounty_search_engine = requests.get(
+        bug_bounty_search_engine = http.get(
             "https://www.bugbountyhunting.com/script.js",
             headers={"User-Agent": get_user_agent()},
         )

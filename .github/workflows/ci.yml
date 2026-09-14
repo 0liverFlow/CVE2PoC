@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      # Correctness gate (pyflakes: unused imports, undefined names, bad
+      # f-strings). The upstream code carries pre-existing style debt, so the
+      # full ruleset is left to `ruff check` run locally, per the README.
+      - name: Lint (ruff, correctness)
+        run: uv run --with ruff ruff check --select F CVE2PoC tests
+
+      - name: Test (pytest)
+        run: uv run --group dev pytest -q

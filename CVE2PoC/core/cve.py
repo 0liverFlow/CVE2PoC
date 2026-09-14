@@ -1,8 +1,9 @@
-import requests
+from CVE2PoC.core import http, cache
 from bs4 import BeautifulSoup as bsoup
 
 import re
 import csv
+import json
 import math
 from datetime import datetime
 
@@ -13,14 +14,15 @@ def download_cisa_kev():
     """
     This function downloads and returns CISA KEV
     """
-    known_exploited_vulnerabilities = requests.get(
+    text = cache.cached_text(
+        "cisa_kev.json",
         "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
-        headers={"User-Agent": get_user_agent()},
     )
-    if known_exploited_vulnerabilities.status_code == 200:
-        kevs = known_exploited_vulnerabilities.json()["vulnerabilities"]
-        return kevs
-    else:
+    if text is None:
+        return None
+    try:
+        return json.loads(text)["vulnerabilities"]
+    except (ValueError, KeyError):
         return None
 
 
@@ -55,14 +57,13 @@ def download_first_epss():
     """
     This function downloads and returns FIRST EPSS data using a CI (CVE2PoC-CI) running on my GitHub repository
     """
-    epss_data = requests.get(
+    text = cache.cached_text(
+        "epss_scores.csv",
         "https://raw.githubusercontent.com/0liverFlow/CVE2PoC-CI/refs/heads/main/epss_scores-current.csv",
-        headers={"User-Agent": get_user_agent()},
     )
-    if epss_data.status_code == 200:
-        return list(csv.DictReader(epss_data.text.splitlines()))
-    else:
+    if text is None:
         return None
+    return list(csv.DictReader(text.splitlines()))
 
 
 def get_epss(cve_id, epss_dict):
@@ -79,7 +80,7 @@ def get_epss(cve_id, epss_dict):
                 break
         else:
             # Query First API directly especially for new CVEs that are not included in my EPSS database yet
-            epss = requests.get(
+            epss = http.get(
                 f"https://api.first.org/data/v1/epss?cve={cve_id.upper()}",
                 headers={"User-Agent": get_user_agent()},
             )
@@ -90,7 +91,7 @@ def get_epss(cve_id, epss_dict):
             else:
                 epss_score = "N/A"
     else:
-        epss = requests.get(
+        epss = http.get(
             f"https://api.first.org/data/v1/epss?cve={cve_id.upper()}",
             headers={"User-Agent": get_user_agent()},
         )
@@ -111,7 +112,7 @@ def retrieve_cve_info_from_nvd(cve_id, nvd_headers):
     """
     cve_info = {}
     cve_info["cwe"] = []
-    nvd_response = requests.get(
+    nvd_response = http.get(
         f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id.upper()}",
         headers=nvd_headers,
     )
@@ -251,7 +252,7 @@ def retrieve_cve_info_from_cve_org(cve_id, headers):
     github_headers, nvd_headers = headers[0], headers[-1]
 
     # Retrieve CVE ID's State, CNA, publication date, vendor and affected product from CVE.org
-    cve_org_response = requests.get(
+    cve_org_response = http.get(
         f"https://raw.githubusercontent.com/CVEProject/cvelistV5/refs/heads/main/cves/{publication_year}/{sequence_number[:-3] + 'xxx'}/{cve_id.upper()}.json",
         headers=github_headers,
     )
@@ -590,7 +591,7 @@ def retrieve_cve_info_from_cve_org(cve_id, headers):
             return cve_info
         else:
             # Check if the CVE ID is not reserved
-            response = requests.get(
+            response = http.get(
                 f"https://cveawg.mitre.org/api/cve-id/{cve_id.upper()}",
                 headers={"User-Agent": get_user_agent()},
             )
@@ -611,7 +612,7 @@ def get_cve_description(cve_id):
     """
     publication_year = cve_id.split("-")[1]
     sequence_number = cve_id.split("-")[-1]
-    cve_org_response = requests.get(
+    cve_org_response = http.get(
         f"https://raw.githubusercontent.com/CVEProject/cvelistV5/refs/heads/main/cves/{publication_year}/{sequence_number[:-3] + 'xxx'}/{cve_id.upper()}.json",
         headers={"User-Agent": get_user_agent()},
     )
@@ -620,7 +621,7 @@ def get_cve_description(cve_id):
         return cve_org_response.json()["containers"]["cna"]["descriptions"][0]["value"]
 
     # Retrieve description from nvd
-    nvd_response = requests.get(
+    nvd_response = http.get(
         f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id.upper()}",
         headers={"User-Agent": get_user_agent()},
     )
@@ -637,7 +638,7 @@ def check_ransomware_group_usage(cve_id):
 
     :param cveid: The CVE ID specified by the user
     """
-    response = requests.get(
+    response = http.get(
         f"https://cvedb.shodan.io/cve/{cve_id}",
         headers={"User-Agent": get_user_agent()},
     )
@@ -673,7 +674,7 @@ def get_cve_references(cve_id, cve_record):
 
     # Github Advisory Database
     ghsa_url = "https://github.com/advisories?query=" + cve_id.upper()
-    response_ghsa = requests.get(ghsa_url, headers={"User-Agent": get_user_agent()})
+    response_ghsa = http.get(ghsa_url, headers={"User-Agent": get_user_agent()})
     soup = bsoup(response_ghsa.text, "html.parser")
     if response_ghsa.status_code == 200:
         ghsa_links = []
@@ -699,7 +700,7 @@ def get_cve_references(cve_id, cve_record):
     if len(reference_urls) < 3:
         publication_year = cve_id.split("-")[1]
         sequence_number = cve_id.split("-")[-1]
-        cve_org_response = requests.get(
+        cve_org_response = http.get(
             f"https://raw.githubusercontent.com/CVEProject/cvelistV5/refs/heads/main/cves/{publication_year}/{sequence_number[:-3] + 'xxx'}/{cve_id.upper()}.json",
             headers={"User-Agent": get_user_agent()},
         )

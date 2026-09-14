@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import requests
+from CVE2PoC.core import http, cache, config
 from markdown import markdown
 from bs4 import BeautifulSoup as bsoup
 from rich.progress import (
@@ -62,7 +62,6 @@ from CVE2PoC.core.mitigations import (
     get_nuclei_remediations,
     get_sentinelone_vulnerability_database_mitigations,
 )
-from CVE2PoC.core.config import BASE_DIR
 from CVE2PoC.core.theme import console, section, poc_header
 
 # Everything the tool prints goes through the Rosé Pine console.
@@ -77,7 +76,7 @@ def _themed_table(**kwargs):
     return Table(**kwargs)
 
 
-def main():
+def _run():
     parser = argparse.ArgumentParser(
         prog="cve2poc.py",
         description="A simple yet powerful tool to quickly find PoCs related to a CVE ID",
@@ -158,14 +157,41 @@ def main():
     parser.add_argument(
         "--no-anim", action="store_true", help="Static banner, no startup animation"
     )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Force a fresh download of the cached feeds (KEV/EPSS/exploit DBs)",
+    )
+    parser.add_argument(
+        "--no-cache", action="store_true", help="Do not read or write the feed cache"
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Delete all cached feeds and exit",
+    )
     # Enable argcomplete
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
-    # API keys configuration (This is not required)
-    load_dotenv()
-    env_path = os.path.join(BASE_DIR, ".env")
+    # Feed caching (KEV / EPSS / ExploitDB / Metasploit / Nuclei).
+    cache.configure(enabled=not args.no_cache, refresh=args.refresh)
+    if args.clear_cache:
+        removed = cache.clear()
+        rprint(
+            f"[found][+][/found] Cleared {removed} cached file(s) from "
+            f"[link]{config.cache_dir()}[/link]"
+        )
+        sys.exit(0)
+
+    # API keys configuration (This is not required). Secrets live under
+    # ~/.config/cve2poc so a reinstall no longer wipes them; migrate any legacy
+    # in-package .env from older versions on first run.
+    config.migrate_legacy_env()
+    env_path = str(config.env_file())
+    load_dotenv(env_path)
     if args.api_keys is True:
+        config.ensure_config_dir()
         # Github API token Configuration
         print(
             f"\nGitHub API Token Configuration\n{'-' * len('GitHub API Token Configuration')}"
@@ -266,13 +292,13 @@ def main():
             rprint("[red3][-][/red3] Please submit a GitHub repository link!\n")
             parser.print_help(sys.stderr)
             sys.exit(1)
-        readme = requests.get(
+        readme = http.get(
             f"https://raw.githubusercontent.com/{args.examine[0].split('https://github.com/')[-1]}/refs/heads/main/README.md",
             headers=github_headers,
         )
         if readme.status_code == 404:
             # Fallback on the master branch if the script failed to retrieve the README.md file from the main branch
-            readme = requests.get(
+            readme = http.get(
                 f"https://raw.githubusercontent.com/{args.examine[0].split('https://github.com/')[-1]}/refs/heads/master/README.md",
                 headers=github_headers,
             )
@@ -419,13 +445,13 @@ def main():
         cve_ids_file_path = args.file
         if not os.path.exists(cve_ids_file_path):
             rprint("[red3][-][/red3] File not found!")
-            sys.exit(-1)
+            sys.exit(2)
         # Check if the user specified an output directory to store the report
         if args.output:
             output_dir = args.output
             if not os.path.exists(output_dir):
                 rprint("[red3][-][/red3] Output directory not found!")
-                sys.exit(-1)
+                sys.exit(2)
         else:
             # The report will be saved in the current working directory by default
             output_dir = os.getcwd()
@@ -753,7 +779,7 @@ def main():
                         ]:
                             full_name = html_url.split("https://github.com/")[-1]
                             # Check GitHub API rate limit (https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) for more information (By default, you have a limit of 60 requests)
-                            gh_poc_repo_info = requests.get(
+                            gh_poc_repo_info = http.get(
                                 f"https://api.github.com/repos/{full_name}",
                                 headers=github_headers,
                             )
@@ -909,8 +935,20 @@ def main():
             )
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point: run the tool and map interruptions and network failures to
+    clean exit codes (130 = interrupted, 3 = network unreachable). This wraps
+    ``_run`` so the codes apply to the installed ``cve2poc`` command too, not
+    only ``python -m``."""
     try:
-        main()
+        _run()
     except KeyboardInterrupt:
+        console.print()
         sys.exit(130)
+    except http.RequestException as exc:
+        console.print(f"  [error]✖[/error] Network error: {exc}")
+        sys.exit(3)
+
+
+if __name__ == "__main__":
+    main()
