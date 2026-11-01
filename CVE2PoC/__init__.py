@@ -149,7 +149,7 @@ def main():
 
     # API keys configuration (This is not required)
     load_dotenv()
-    env_path = os.path.join(BASE_DIR, ".env")
+    env_path = os.path.join(BASE_DIR, "..", ".env")
     if args.api_keys is True:
         # Github API token Configuration
         print(
