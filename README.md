@@ -16,10 +16,10 @@ CVE2PoC is a tool that helps penetration testers, bug hunters, and security rese
    * [Vulnerable Docker Environment and Hands-on Labs](#vulnerable-docker-environment-and-hands-on-labs)
    * [Bug Bounty Reports](#bug-bounty-reports)
    * [Remediation Steps](#remediation-steps)
+   * [Filters](#filters)
    * [Exploit Documentation](#exploit-documentation)
    * [CPE to CVE IDs](#cpe-to-cve-ids)
    * [CVE ID to CPEs](#cve-id-to-cpes)
-   * [Filters](#filters)
 - [Post Installation Setup](#post-installation-setup)
 - [Linting and Formating](#linting-and-formating)
 - [Credits](#credits)
@@ -169,6 +169,31 @@ To quickly identify remediation steps for a vulnerability, use this command:
 cve2poc --mitigations <CVE ID>
 ```
 
+##  Filters
+
+### Filter Public Exploits By Programming Language
+
+CVE2PoC has a feature that can help you search for PoCs written in a specific programming language. To use it, run this command:  
+
+```bash
+cve2poc <CVE ID> --language <Programming Language>
+```
+
+![filter_pocs by_programming_language](assets/filter_by_programming_language.png)
+
+
+### Limit The Number of Exploits to Display
+
+By default, CVE2PoC returns the top 10 exploits found on GitHub. Nevertheless, you can display more or fewer exploits using the `--limit` flag:  
+
+```bash
+cve2poc <CVE ID> --limit <N>
+```
+
+![limit_number_of_pocs_to_display](assets/limit_number_of_pocs_to_display.png)  
+
+> **N** must be greater than or equal to 1.  
+
 ![remediation_steps](assets/remediation_steps.png)
 
 
@@ -206,33 +231,6 @@ cve2poc --cve2cpe <CVE ID>
 ```
 
 ![cve to cpess](assets/cve_to_cpes.png)
-
-
-##  Filters
-
-### Filter Public Exploits By Programming Language
-
-CVE2PoC has a feature that can help you search for PoCs written in a specific programming language. To use it, run this command:  
-
-```bash
-cve2poc <CVE ID> --language <Programming Language>
-```
-
-![filter_pocs by_programming_language](assets/filter_by_programming_language.png)
-
-
-### Limit The Number of Exploits to Display
-
-By default, CVE2PoC returns the top 10 exploits found on GitHub. Nevertheless, you can display more or fewer exploits using the `--limit` flag:  
-
-```bash
-cve2poc <CVE ID> --limit <N>
-```
-
-![limit_number_of_pocs_to_display](assets/limit_number_of_pocs_to_display.png)  
-
-> **N** must be greater than or equal to 1.  
-
 
 # Post Installation Setup
 
